@@ -1,3 +1,5 @@
+import os
+import pathlib
 from pytube import Playlist, YouTube
 
 
@@ -38,6 +40,8 @@ def main(mode: int = 1):
 
 
 if __name__ == "__main__":
+    if not os.path.exists("./Downloaded"):
+        pathlib.Path("./Downloaded").mkdir(parents=True, exist_ok=True)
     print("โปรดเลือกโหมดในการ Download\n1). Videos\n2). Audios")
     mode = input("(defualt = 1) : ")
     if mode == "":
