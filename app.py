@@ -4,7 +4,7 @@ from pytubefix import Playlist, YouTube
 
 
 def youtube_download(url: str, mode: bool):
-    playlist = Playlist(f"{url}")
+    playlist = Playlist(url)
     print("Number of videos in playlist: %s" % len(playlist.video_urls))
     for i, link in enumerate(playlist):
         yt = YouTube(link)
@@ -31,15 +31,10 @@ def main(mode: int):
     dmode = True if mode == 1 else False
     print(mode)
     if int(mode) != 3:
-        while True:
-            print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
-            print("https://www.youtube.com/playlist?list={list-ID}")
-            try:
-                url = input("Please past youtube playlist url\n: ")
-                youtube_download(url, dmode)
-            except KeyboardInterrupt:
-                print("bye")
-                return
+        print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
+        print("https://www.youtube.com/playlist?list={list-ID}")
+        url = input("Please past youtube playlist url\n: ")
+        youtube_download(url, dmode)
     else:
         print("ดาวน์โหลด YouTube Video")
         url = input("Please past youtube url\n: ")
