@@ -23,19 +23,10 @@ def vdo_download(url: str) -> str:
     yt = YouTube(url)
     print(f"Downloading Video: {yt.title}")
     video, audio = None, None
-    abr_max = 0
 
     while video is None or audio is None:
-        print("resolution not found")
-        reso = input("Please provide resolution: ")
-        filter = yt.streams.filter(resolution=reso, mime_type="video/mp4")
-        video = filter.first()
-        audio = yt.streams.filter(type="audio")
-        for audi in audio:
-            if int(str(audi.abr or 0).strip("kbps")) > abr_max:
-                abr_max = int(str(audi.abr).strip("kbps"))
-        print(abr_max)
-        audio = yt.streams.filter(abr=f"{abr_max}kbps").first()
+        video = yt.streams.get_highest_resolution(progressive=False)
+        audio = yt.streams.get_audio_only()
     print("Downloading Video")
     video_path = video.download("./Tmp", filename_prefix="tmp_")
     print("Downloading Audio")
@@ -55,13 +46,7 @@ def audio_download(url: str) -> str | None:
     print(f"Downloading audio: {yt.title}")
     audio = None
     while audio is None:
-        abr_max = 0
-        audio = yt.streams.filter(type="audio")
-        for audi in audio:
-            if int(str(audi.abr or 0).strip("kbps")) > abr_max:
-                abr_max = int(str(audi.abr).strip("kbps"))
-        print(f"Selected Best Audio Bitrate: {abr_max}kbps")
-        audio = yt.streams.filter(abr=f"{abr_max}kbps").first()
+        audio = yt.streams.get_audio_only()
     audio_path = audio.download("./Downloaded")
     return audio_path
 
