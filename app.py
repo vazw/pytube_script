@@ -5,6 +5,11 @@ import pathlib
 import subprocess
 from pytubefix import Playlist, YouTube
 
+if not os.path.exists("./Downloaded"):
+    pathlib.Path("./Downloaded").mkdir(parents=True, exist_ok=True)
+if not os.path.exists("./Tmp"):
+    pathlib.Path("./Tmp").mkdir(parents=True, exist_ok=True)
+
 
 def youtube_download(url: str, mode: bool):
     """
@@ -15,23 +20,40 @@ def youtube_download(url: str, mode: bool):
     for i, link in enumerate(playlist):
         print(
             i + 1,
-            f" Downloaded to {vdo_download(link) if mode else audio_download(link)}.",
+            f" Downloaded to {vdo_download(link) if mode else audio_download(link)}",
         )
 
 
 def vdo_download(url: str) -> str:
+    tries = 0
     yt = YouTube(url)
     print(f"Downloading Video: {yt.title}")
     video, audio = None, None
 
     while video is None or audio is None:
+        if tries > 10:
+            yt = YouTube(url)
+            tries = 0
         video = yt.streams.get_highest_resolution(progressive=False)
         audio = yt.streams.get_audio_only()
-    print("Downloading Video")
+        tries += 1
+    print(
+        f"""
+Video:
+    Resolution : {video.resolution}
+Audio:
+    BitRate : {audio.abr}
+    """
+    )
     video_path = video.download("./Tmp", filename_prefix="tmp_")
-    print("Downloading Audio")
+    print(f"Downloaded Video to {video_path}")
     audio_path = audio.download("./Tmp", filename_prefix="tmp_")
+    print(f"Downloaded Audio to {audio_path}")
 
+    ## Skip if file already exists
+    if os.path.exists(f"./Downloaded/{yt.title}.mp4"):
+        print("Skip Completed Download file")
+        return f"./Downloaded/{yt.title}.mp4"
     ## Enable Hardware Acceleration
     # cmd = f'ffmpeg -y -init_hw_device vaapi:/dev/dri/renderD128 -i "{audio_path}" -r 30 -i "{video_path}" -af \'aresample=async=1\' -c:a libopus -c:v copy  "./Downloaded/{yt.title}.mp4"'
     cmd = f'ffmpeg -y -i "{audio_path}" -r 30 -i "{video_path}" -af \'aresample=async=1\' -c:a libopus -c:v copy  "./Downloaded/{yt.title}.mp4"'
@@ -62,7 +84,7 @@ def main(mode: int):
         case 2:
             print("Audio Playlist Mode")
             print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
-            print("https://www.youtube.com/watch?v=8UrwByNA2gk")
+            print("https://www.youtube.com/playlist?list={list-ID}")
             url = input("Please past youtube url\n: ")
             youtube_download(url, False)
         case 3:
@@ -80,24 +102,30 @@ def main(mode: int):
 
 
 if __name__ == "__main__":
-    if not os.path.exists("./Downloaded"):
-        pathlib.Path("./Downloaded").mkdir(parents=True, exist_ok=True)
-    if not os.path.exists("./Tmp"):
-        pathlib.Path("./Tmp").mkdir(parents=True, exist_ok=True)
     args = sys.argv
-    if args.__len__() > 1 and (args[1] == "--help" or "-h"):
+    if not args.__len__() > 1:
         print(
-            """
-Pytube Downloader by Vaz
-        """
+            "โปรดเลือกโหมดในการ Download\n1). Playlist Videos\n2). Playlist Audios\n3). Video\n4). Audios"
         )
-        os._exit(0)
-    print(
-        "โปรดเลือกโหมดในการ Download\n1). Playlist Videos\n2). Playlist Audios\n3). Video\n4). Audios"
-    )
-    mode = input("(defualt = 1) : ")
-    if mode == "":
-        mode = 1
+        mode = input("(defualt = 1) : ")
+        if mode == "":
+            mode = 1
+        else:
+            mode = int(mode)
+        main(mode)
     else:
-        mode = int(mode)
-    main(mode)
+        match args[1]:
+            case "-h" | "--help":
+                print(
+                    """
+Pytube Downloader by Vaz
+
+-h | --help : show this menu 
+-c | --clean : Clean up Downloader and Tmp
+                """
+                )
+            case "-c" | "--clean":
+                cmd = "rm ./Downloaded/*"
+                subprocess.call(cmd, shell=True)
+                cmd = "rm ./Tmp/*"
+                subprocess.call(cmd, shell=True)
