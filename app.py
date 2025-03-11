@@ -1,6 +1,8 @@
+#!.venv/bin/python
 import sys
 import os
 import pathlib
+import subprocess
 from pytubefix import Playlist, YouTube
 
 
@@ -11,75 +13,92 @@ def youtube_download(url: str, mode: bool):
     playlist = Playlist(url)
     print("Number of videos in playlist: %s" % len(playlist.video_urls))
     for i, link in enumerate(playlist):
-        yt = YouTube(link)
-        d_video = None
-        while d_video is None:
-            if mode:
-                print(f"Downloading video: {yt.title}")
-                d_video = yt.streams.get_highest_resolution()
-            else:
-                print(f"Downloading audio: {yt.title}")
-                d_video = yt.streams.get_audio_only()
-        result = d_video.download("./Downloaded")
-        print(i + 1, f" Downloaded to {result}.")
+        print(
+            i + 1,
+            f" Downloaded to {vdo_download(link) if mode else audio_download(link)}.",
+        )
 
 
-def vdo_download(url: str):
+def vdo_download(url: str) -> str:
     yt = YouTube(url)
     print(f"Downloading Video: {yt.title}")
-    reso = input("Please provide resolution: ")
-    # print(f"Data: {yt.streams.get_by_resolution(reso)}")
-    video = yt.streams.get_by_resolution(reso)
-    while video is None:
+    video, audio = None, None
+    abr_max = 0
+
+    while video is None or audio is None:
         print("resolution not found")
         reso = input("Please provide resolution: ")
-        video = yt.streams.get_by_resolution(reso)
-    result = video.download("./Downloaded")
-    print(f"Downloaded Video: {result}")
+        filter = yt.streams.filter(resolution=reso, mime_type="video/mp4")
+        video = filter.first()
+        audio = yt.streams.filter(type="audio")
+        for audi in audio:
+            if int(str(audi.abr or 0).strip("kbps")) > abr_max:
+                abr_max = int(str(audi.abr).strip("kbps"))
+        print(abr_max)
+        audio = yt.streams.filter(abr=f"{abr_max}kbps").first()
+    print("Downloading Video")
+    video_path = video.download("./Tmp", filename_prefix="tmp_")
+    print("Downloading Audio")
+    audio_path = audio.download("./Tmp", filename_prefix="tmp_")
+
+    ## Enable Hardware Acceleration
+    # cmd = f'ffmpeg -y -init_hw_device vaapi:/dev/dri/renderD128 -i "{audio_path}" -r 30 -i "{video_path}" -af \'aresample=async=1\' -c:a libopus -c:v copy  "./Downloaded/{yt.title}.mp4"'
+    cmd = f'ffmpeg -y -i "{audio_path}" -r 30 -i "{video_path}" -af \'aresample=async=1\' -c:a libopus -c:v copy  "./Downloaded/{yt.title}.mp4"'
+    print(f"Spawning {cmd}")
+    subprocess.call(cmd, shell=True)
+    print("Done")
+    return f"./Downloaded/{yt.title}.mp4"
 
 
-def audio_download(url: str):
+def audio_download(url: str) -> str | None:
     yt = YouTube(url)
     print(f"Downloading audio: {yt.title}")
-    audio = yt.streams.get_audio_only()
-    if audio is not None:
-        result = audio.download("./Downloaded")
-        print(f"Downloaded Video: {result}")
-    else:
-        print("resolution not found")
-        print("Abort!!")
+    audio = None
+    while audio is None:
+        abr_max = 0
+        audio = yt.streams.filter(type="audio")
+        for audi in audio:
+            if int(str(audi.abr or 0).strip("kbps")) > abr_max:
+                abr_max = int(str(audi.abr).strip("kbps"))
+        print(f"Selected Best Audio Bitrate: {abr_max}kbps")
+        audio = yt.streams.filter(abr=f"{abr_max}kbps").first()
+    audio_path = audio.download("./Downloaded")
+    return audio_path
 
 
 def main(mode: int):
-    if int(mode) == 1:
-        print("Video Playlist Mode")
-        print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
-        print("https://www.youtube.com/playlist?list={list-ID}")
-        url = input("Please past youtube playlist url\n: ")
-        youtube_download(url, True)
-    elif int(mode) == 2:
-        print("Audio Playlist Mode")
-        print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
-        print("https://www.youtube.com/watch?v=8UrwByNA2gk")
-        url = input("Please past youtube url\n: ")
-        youtube_download(url, False)
-    elif int(mode) == 3:
-        print("Single Video Mode")
-        print("ดาวน์โหลด YouTube ตัวอย่างลิงค์")
-        print("https://www.youtube.com/watch?v=8UrwByNA2gk")
-        url = input("Please past youtube url\n: ")
-        vdo_download(url)
-    else:
-        print("Single Audio Mode")
-        print("ดาวน์โหลด YouTube ตัวอย่างลิงค์")
-        print("https://www.youtube.com/watch?v=8UrwByNA2gk")
-        url = input("Please past youtube url\n: ")
-        audio_download(url)
+    match mode:
+        case 1:
+            print("Video Playlist Mode")
+            print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
+            print("https://www.youtube.com/playlist?list={list-ID}")
+            url = input("Please past youtube playlist url\n: ")
+            youtube_download(url, True)
+        case 2:
+            print("Audio Playlist Mode")
+            print("ดาวน์โหลด YouTube Playlist ตัวอย่างลิงค์")
+            print("https://www.youtube.com/watch?v=8UrwByNA2gk")
+            url = input("Please past youtube url\n: ")
+            youtube_download(url, False)
+        case 3:
+            print("Single Video Mode")
+            print("ดาวน์โหลด YouTube ตัวอย่างลิงค์")
+            print("https://www.youtube.com/watch?v=8UrwByNA2gk")
+            url = input("Please past youtube url\n: ")
+            print(vdo_download(url))
+        case 4:
+            print("Single Audio Mode")
+            print("ดาวน์โหลด YouTube ตัวอย่างลิงค์")
+            print("https://www.youtube.com/watch?v=8UrwByNA2gk")
+            url = input("Please past youtube url\n: ")
+            print(audio_download(url))
 
 
 if __name__ == "__main__":
     if not os.path.exists("./Downloaded"):
         pathlib.Path("./Downloaded").mkdir(parents=True, exist_ok=True)
+    if not os.path.exists("./Tmp"):
+        pathlib.Path("./Tmp").mkdir(parents=True, exist_ok=True)
     args = sys.argv
     if args.__len__() > 1 and (args[1] == "--help" or "-h"):
         print(
