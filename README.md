@@ -1,10 +1,11 @@
 # pytube_script
 
-script to download youtube playlist with Videos or Audios format
+Python script to download Youtube playlist with Videos or Audios format
 
 ## Required Dependency
 
-Make sure to installed `python3` and `ffmpeg`
+This Script Required `python3` and If your Downloading Videos
+Make sure to installed `ffmpeg` to merges audio and video together
 
 ## Run
 
